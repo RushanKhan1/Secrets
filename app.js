@@ -1,4 +1,5 @@
 //jshint esversion:6
+require('dotenv').config()
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
@@ -6,7 +7,8 @@ const mongoose = require("mongoose")
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
-
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
 
@@ -28,16 +30,21 @@ app.use(passport.initialize()); // initializing passport
 app.use(passport.session()); // telling express that we are going to use express to manage our sessions
 
 
+
+
 mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true});
 mongoose.set("useCreateIndex", true); // did this to avoid the deprecation warning;
 
 const userSchema = new mongoose.Schema({
     user: String,
-    password: String
+    password: String,
+    googleId: String
 });
 
 
+// adding the plugins in the user model.
 userSchema.plugin(passportLocalMongoose);
+userSchema.plugin(findOrCreate);
 
 const User = mongoose.model('User', userSchema);
 
@@ -46,15 +53,44 @@ passport.use(User.createStrategy()); // creating a local login strategy
 
 
 // the method generates a function that is used by Passport to serialize users into the session
-passport.serializeUser(User.serializeUser()); // creating a cookie
+passport.serializeUser(function(user, done) { // creating a cookie
+  done(null, user.id);
+});
 
 // the method generates a function that is used by Passport to deserialize users into the session
-passport.deserializeUser(User.deserializeUser()); // opening the cookie to reveal user information
+passport.deserializeUser(function(id, done) {  // opening the cookie to reveal user information
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
 
+
+
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/secrets"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
 
 
 app.get("/", (req, res) => {
     res.render("home");
+});
+
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile"] }));
+
+
+
+app.get("/auth/google/secrets", passport.authenticate("google", { failureRedirect: "/login" }), (req, res) => {
+    // if authentication is successful
+    res.render('secrets');
 });
 
 app.get("/register", (req, res) => {
