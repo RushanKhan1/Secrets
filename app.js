@@ -8,6 +8,7 @@ const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const FacebookStrategy = require("passport-facebook");
 const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
@@ -27,7 +28,7 @@ app.use(session({
 }));
 
 app.use(passport.initialize()); // initializing passport
-app.use(passport.session()); // telling express that we are going to use express to manage our sessions
+app.use(passport.session()); // telling express that we are going to use express-session to manage our sessions
 
 
 
@@ -38,7 +39,8 @@ mongoose.set("useCreateIndex", true); // did this to avoid the deprecation warni
 const userSchema = new mongoose.Schema({
     user: String,
     password: String,
-    googleId: String
+    googleId: String,
+    facebookId: String
 });
 
 
@@ -80,6 +82,19 @@ passport.use(new GoogleStrategy({
 ));
 
 
+passport.use(new FacebookStrategy({
+    clientID: process.env.FB_APP_ID,
+    clientSecret: process.env.FB_APP_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+},
+function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ facebookId: profile.id }, (err, user) => {
+	return cb(err, user);
+    });    
+}));
+
+
+
 app.get("/", (req, res) => {
     res.render("home");
 });
@@ -87,11 +102,19 @@ app.get("/", (req, res) => {
 app.get("/auth/google", passport.authenticate("google", { scope: ["profile"] }));
 
 
+app.get("/auth/facebook", passport.authenticate("facebook"));
+
 
 app.get("/auth/google/secrets", passport.authenticate("google", { failureRedirect: "/login" }), (req, res) => {
     // if authentication is successful
-    res.render('secrets');
+    res.render("secrets");
 });
+
+app.get("/auth/facebook/secrets", passport.authenticate('facebook', { failureRedirect: "/login" }), (req, res) => {
+   // authentication is successful 
+    res.render("secrets");
+});
+
 
 app.get("/register", (req, res) => {
     res.render("register");
