@@ -40,7 +40,8 @@ const userSchema = new mongoose.Schema({
     user: String,
     password: String,
     googleId: String,
-    facebookId: String
+    facebookId: String,
+    secret: [String]
 });
 
 
@@ -72,7 +73,7 @@ passport.deserializeUser(function(id, done) {  // opening the cookie to reveal u
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/google/secrets"
+    callbackURL: "http://localhost:3000/auth/google/submit"
   },
   function(accessToken, refreshToken, profile, cb) {
     User.findOrCreate({ googleId: profile.id }, function (err, user) {
@@ -85,7 +86,7 @@ passport.use(new GoogleStrategy({
 passport.use(new FacebookStrategy({
     clientID: process.env.FB_APP_ID,
     clientSecret: process.env.FB_APP_SECRET,
-    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+    callbackURL: "http://localhost:3000/auth/facebook/submit"
 },
 function(accessToken, refreshToken, profile, cb) {
     User.findOrCreate({ facebookId: profile.id }, (err, user) => {
@@ -105,14 +106,14 @@ app.get("/auth/google", passport.authenticate("google", { scope: ["profile"] }))
 app.get("/auth/facebook", passport.authenticate("facebook"));
 
 
-app.get("/auth/google/secrets", passport.authenticate("google", { failureRedirect: "/login" }), (req, res) => {
+app.get("/auth/google/submit", passport.authenticate("google", { failureRedirect: "/login" }), (req, res) => {
     // if authentication is successful
-    res.render("secrets");
+    res.render("submit");
 });
 
-app.get("/auth/facebook/secrets", passport.authenticate('facebook', { failureRedirect: "/login" }), (req, res) => {
+app.get("/auth/facebook/submit", passport.authenticate('facebook', { failureRedirect: "/login" }), (req, res) => {
    // authentication is successful 
-    res.render("secrets");
+    res.render("submit");
 });
 
 
@@ -133,7 +134,22 @@ app.get("/secrets", (req, res) => {
 
     // the method checks if the user is logged in
     if (req.isAuthenticated()) {
-	res.render("secrets");
+	// if the user is authenticated then find all posts which have a secret in them
+	User.find({"secret": {$exists: true, $ne: [] }}, (err, foundUsers) => {
+	    if (err) {
+		console.log(err);
+	    } 
+	    else {
+		if (foundUsers) {
+		    console.log(foundUsers.secret);
+		    res.render("secrets", {foundUsers: foundUsers.secret});
+		}
+		else {
+		    console.log("No user found!");
+		    res.redirect("/login")
+		}
+	    }
+	});
     }
     else {
 	res.redirect("/login");
@@ -148,7 +164,33 @@ app.get("/logout", (req, res) => {
 
 });
 
+app.get("/submit", (req, res) => {
+    if (req.isAuthenticated()) {
+	res.render("submit");
+    }
+    else {
+	res.redirect("/login");
+    }
+});
 
+
+app.post("/submit", (req, res) => {
+    var secret = req.body.secret;
+    secret = secret.toString();
+    User.findById(req.user.id, (err, foundUser) => {
+	if (err) {
+	    console.log(err);
+	}
+	else {
+	    foundUser.secret.push(secret);
+	    console.log(foundUser.secret)
+	    foundUser.save();
+	    console.log(foundUser);
+	    res.render("secrets", {foundUsers: foundUser.secret});
+	}
+    })
+    
+})
 
 app.post("/register", (req, res) => {
 
