@@ -38,7 +38,10 @@ mongoose.set("useCreateIndex", true); // did this to avoid the deprecation warni
 
 const userSchema = new mongoose.Schema({
     user: String,
-    password: String,
+    password: {
+	required: false,
+	type: String
+    },
     googleId: String,
     facebookId: String,
     secret: [String]
@@ -126,34 +129,33 @@ app.get("/login", (req, res) => {
 });
 
 
+// array to store all of the user secrets in one place
+let allSecrets = [""];
 
 // if the user is logged in and authenticated for their current session then they will be able to access the secrets route directly
 // for the active session
 // this happens due to the cookie that saves the session ID
 app.get("/secrets", (req, res) => {
-
-    // the method checks if the user is logged in
-    if (req.isAuthenticated()) {
-	// if the user is authenticated then find all posts which have a secret in them
+	
+    //finding all secrets
 	User.find({"secret": {$exists: true, $ne: [] }}, (err, foundUsers) => {
 	    if (err) {
 		console.log(err);
 	    } 
 	    else {
 		if (foundUsers) {
+		    allSecrets.push(foundUsers.secret);
 		    console.log(foundUsers.secret);
-		    res.render("secrets", {foundUsers: foundUsers.secret});
+		    res.render("secrets", {foundUsers: allSecrets});
 		}
 		else {
 		    console.log("No user found!");
 		    res.redirect("/login")
 		}
-	    }
-	});
-    }
-    else {
-	res.redirect("/login");
-    }
+		
+	    }});
+		
+    
 });
 
 
@@ -186,7 +188,8 @@ app.post("/submit", (req, res) => {
 	    console.log(foundUser.secret)
 	    foundUser.save();
 	    console.log(foundUser);
-	    res.render("secrets", {foundUsers: foundUser.secret});
+	    allSecrets.push(secret)
+	    res.render("secrets", {foundUsers: allSecrets});
 	}
     })
     
@@ -258,3 +261,5 @@ app.listen(port, (err) => {
 	console.log("Server started successfully.");
     }
 })
+
+// make user redirect to the home page after logging in.
