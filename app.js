@@ -32,8 +32,8 @@ app.use(passport.session()); // telling express that we are going to use express
 
 
 
-
-mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true});
+mongoose.connect("mongodb+srv://" + process.env.DB_USER + ":" + process.env.DB_PASS + "@cluster0.2zug1.mongodb.net/secretsDB?retryWrites=true&w=majority", {useNewUrlParser: true, useUnifiedTopology: true}
+);
 mongoose.set("useCreateIndex", true); // did this to avoid the deprecation warning;
 
 const userSchema = new mongoose.Schema({
@@ -79,7 +79,7 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://localhost:3000/auth/google/submit"
   },
   function(accessToken, refreshToken, profile, cb) {
-    User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      User.findOrCreate({username: profile.id, googleId: profile.id }, function (err, user) {
       return cb(err, user);
     });
   }
@@ -92,7 +92,7 @@ passport.use(new FacebookStrategy({
     callbackURL: "http://localhost:3000/auth/facebook/submit"
 },
 function(accessToken, refreshToken, profile, cb) {
-    User.findOrCreate({ facebookId: profile.id }, (err, user) => {
+    User.findOrCreate({ username: profile.id, facebookId: profile.id }, (err, user) => {
 	return cb(err, user);
     });    
 }));
@@ -138,14 +138,28 @@ let allSecrets = [""];
 app.get("/secrets", (req, res) => {
 	
     //finding all secrets
-	User.find({"secret": {$exists: true, $ne: [] }}, (err, foundUsers) => {
+	User.find({"secret": {$exists: true, $ne: [] }}, (err, usersWithSecrets) => {
 	    if (err) {
 		console.log(err);
 	    } 
 	    else {
-		if (foundUsers) {
-		    allSecrets.push(foundUsers.secret);
-		    console.log(foundUsers.secret);
+		if (usersWithSecrets) {
+		    let i = 0;
+		    allSecrets = [""];
+		    while(i < usersWithSecrets.length)
+		    {
+			let j = 0;
+			while(j < usersWithSecrets[i].secret.length){
+
+			    allSecrets.push(usersWithSecrets[i].secret[j]);
+			    j++;
+			}
+
+			i++;
+		    }
+		    // allSecrets.push(usersWithSecrets.secret);
+		    // console.log(usersWithSecrets.secret);
+		    console.log(allSecrets);
 		    res.render("secrets", {foundUsers: allSecrets});
 		}
 		else {
@@ -179,20 +193,19 @@ app.get("/submit", (req, res) => {
 app.post("/submit", (req, res) => {
     var secret = req.body.secret;
     secret = secret.toString();
-    User.findById(req.user.id, (err, foundUser) => {
+    User.findById(req.user.id, (err, usersWithSecrets) => {
 	if (err) {
 	    console.log(err);
 	}
 	else {
-	    foundUser.secret.push(secret);
-	    console.log(foundUser.secret)
-	    foundUser.save();
-	    console.log(foundUser);
-	    allSecrets.push(secret)
-	    res.render("secrets", {foundUsers: allSecrets});
+	    usersWithSecrets.secret.push(secret);
+	    // console.log(usersWithSecrets.secret)
+	    usersWithSecrets.save();
+	    console.log(usersWithSecrets);
+	    res.redirect("/secrets");
 	}
     })
-    
+   
 })
 
 app.post("/register", (req, res) => {
@@ -261,5 +274,3 @@ app.listen(port, (err) => {
 	console.log("Server started successfully.");
     }
 })
-
-// make user redirect to the home page after logging in.
