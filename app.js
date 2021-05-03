@@ -72,11 +72,20 @@ passport.deserializeUser(function(id, done) {  // opening the cookie to reveal u
 
 
 
+let url = ""
+
+//when the app is deployed used the deployed url else use local host
+if(process.env.PORT){
+    url = "https://seecrets.herokuapp.com"
+}
+else {
+    url = "http://localhost:3000"
+}
 
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/google/submit"
+    callbackURL: url + "/auth/google/submit"
   },
   function(accessToken, refreshToken, profile, cb) {
       User.findOrCreate({username: profile.id, googleId: profile.id }, function (err, user) {
@@ -89,7 +98,7 @@ passport.use(new GoogleStrategy({
 passport.use(new FacebookStrategy({
     clientID: process.env.FB_APP_ID,
     clientSecret: process.env.FB_APP_SECRET,
-    callbackURL: "http://localhost:3000/auth/facebook/submit"
+    callbackURL: url + "/auth/facebook/submit"
 },
 function(accessToken, refreshToken, profile, cb) {
     User.findOrCreate({ username: profile.id, facebookId: profile.id }, (err, user) => {
