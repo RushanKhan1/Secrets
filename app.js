@@ -76,7 +76,7 @@ let url = ""
 
 //when the app is deployed used the deployed url else use local host
 if(process.env.PORT){
-    url = "https://seecrets.herokuapp.com"
+    url = "https://www.seecrets.herokuapp.com"
 }
 else {
     url = "http://localhost:3000"
