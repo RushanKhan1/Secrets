@@ -6,14 +6,14 @@
 <br>
 
 <p align="center">
-<img src="/img/preview.png" alt="preview image"/>
+<img src="/images/preview.png" alt="preview image"/>
 </p>
 
 
 <h2>Features</h2>
 
 * Share your secrets anonymously.
-* Read other people's secrets. 
+* Read other people's secrets.
 * Local authentication using Passport.js.
 * Google and Facebook login supported using OAUTH 2.0.
 
